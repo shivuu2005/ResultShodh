@@ -1,40 +1,36 @@
+# app.py
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from waitress import serve
 from time import sleep, time
 import threading
 import queue
 import os
-import sys
 from config import Config
 from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
-from models import db, User
+from models import db, User  # Imported db from models.py
 from auth import auth
 from flask_login import LoginManager, login_required, current_user
 from flask_cors import CORS
 import main
 
-# Initialize Flask app and configurations
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db) 
+# Database and migration setup
+db.init_app(app)  # Only call init_app here
+migrate = Migrate(app, db)
 
-# Database and Login setup
-db.init_app(app)
+# Login manager setup
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.init_app(app)
 
-# User loader function for Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# Register auth blueprint for authentication routes
+# Register auth blueprint
 app.register_blueprint(auth, url_prefix='/auth')
+
+# The rest of your app setup and routes...
+
 
 # Initialize queue and task storage
 task_queue = queue.Queue()
