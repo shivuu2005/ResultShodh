@@ -12,5 +12,4 @@ pytesseract==0.3.8
 flask_sqlalchemy
 Pillow==8.4.0
 gunicorn 
-Werkzeug==2.2.2
-
+Werkzeug==0.16.1  
