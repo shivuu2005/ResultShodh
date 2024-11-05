@@ -9,6 +9,7 @@ imutils==0.5.4
 beautifulsoup4==4.11.1
 requests==2.26.0
 pytesseract==0.3.8
+flask_sqlalchemy
 Pillow==8.4.0
 gunicorn 
 Werkzeug==2.2.2
