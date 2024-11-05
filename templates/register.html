@@ -1,10 +1,11 @@
+<!-- templates/register.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -90,6 +91,7 @@
         {% endwith %}
         
         <form action="{{ url_for('auth.register') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+            {{ form.hidden_tag() }}  <!-- Include the CSRF token here -->
             <input type="text" name="college_name" placeholder="College Name" required>
             <input type="email" name="email" placeholder="Email" required>
             <input type="tel" name="contact_number" placeholder="Mobile Number" pattern="[0-9]{10}" title="Enter a valid 10-digit phone number" required>
