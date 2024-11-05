@@ -13,3 +13,4 @@ flask_sqlalchemy
 Pillow==8.4.0
 gunicorn 
 Werkzeug==2.2.2  # Compatible version
+pymysql>=1.0.0
