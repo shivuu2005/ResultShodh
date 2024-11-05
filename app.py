@@ -6,6 +6,8 @@ import queue
 import os
 import sys
 from config import Config
+from flask_migrate import Migrate
+
 from models import db, User
 from auth import auth
 from flask_login import LoginManager, login_required, current_user
@@ -16,6 +18,9 @@ import main
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db) 
 
 # Database and Login setup
 db.init_app(app)
