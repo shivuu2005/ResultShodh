@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        h1 {
+            text-align: center;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #5cb85c;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .success {
+            color: green;
+            margin-bottom: 10px;
+        }
+        .password-container {
+            position: relative;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Register</h1>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+                <div>
+                    {% for category, message in messages %}
+                        <div class="{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form action="{{ url_for('auth.register') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+            <input type="text" name="college_name" placeholder="College Name" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="tel" name="contact_number" placeholder="Mobile Number" pattern="[0-9]{10}" title="Enter a valid 10-digit phone number" required>
+            <input type="text" name="address" placeholder="Address" required>
+            <div class="password-container">
+                <input type="password" name="password" id="password" placeholder="Password" required>
+                <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
+            </div>
+            <button type="submit">Register</button>
+        </form>
+        
+        <p class="login-link">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+    </div>
+
+    <script>
+        // Password toggle visibility function
+        function togglePasswordVisibility() {
+            const passwordField = document.getElementById('password');
+            const passwordType = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', passwordType);
+        }
+
+        // Basic validation for the form
+        function validateForm() {
+            const collegeName = document.forms[0]["college_name"].value;
+            const email = document.forms[0]["email"].value;
+            const contactNumber = document.forms[0]["contact_number"].value;
+            const address = document.forms[0]["address"].value;
+            const password = document.forms[0]["password"].value;
+            
+            if (!collegeName || !email || !contactNumber || !address || !password) {
+                alert("Please fill in all fields.");
+                return false;
+            }
+            if (contactNumber.length !== 10) {
+                alert("Please enter a valid 10-digit mobile number.");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>
