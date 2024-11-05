@@ -214,14 +214,20 @@ def getfile():
 
 # Run the app
 if __name__ == '__main__':
+    # Create database tables
     with app.app_context():
-        db.create_all()
+        db.create_all()  # Consider using migrations for schema changes
 
+    # Start worker and janitor threads
     worker_thread = threading.Thread(target=worker, name="WorkerThread", daemon=True)
     janitor_thread = threading.Thread(target=janitor, name="JanitorThread", daemon=True)
     worker_thread.start()
     janitor_thread.start()
 
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    # Get port from environment variable or default to 8080
+    port = int(os.environ.get('PORT', 8080))
     print("Server is running on port:", port)
-    serve(app, port=port)
+
+    # Run the application
+    from waitress import serve  # or another server like gunicorn
+    serve(app, host='0.0.0.0', port=port)  # Use '0.0.0.0' to allow external access
