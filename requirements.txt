@@ -1,4 +1,4 @@
-Flask==3.0.3
+Flask==2.2.3
 waitress==2.1.2
 Flask-Login==0.6.2
 Flask-Cors==3.0.10
