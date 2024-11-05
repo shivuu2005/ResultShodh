@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from waitress import serve
 from time import sleep, time
@@ -7,30 +6,32 @@ import queue
 import os
 from config import Config
 from flask_migrate import Migrate
-from models import db, User  # Imported db from models.py
+from models import db, User
 from auth import auth
 from flask_login import LoginManager, login_required, current_user
 from flask_cors import CORS
 import main
+from werkzeug.security import check_password_hash, generate_password_hash  # Import for password checking and hashing
 
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
-
-# Database and migration setup
-db.init_app(app)  # Only call init_app here
-migrate = Migrate(app, db)
 
 # Login manager setup
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.init_app(app)
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Database and migration setup
+db.init_app(app)
+migrate = Migrate(app, db)
+
 # Register auth blueprint
 app.register_blueprint(auth, url_prefix='/auth')
-
-# The rest of your app setup and routes...
-
 
 # Initialize queue and task storage
 task_queue = queue.Queue()
@@ -43,6 +44,7 @@ def worker():
             uuid = task_queue.get()
             if uuid in task_data:
                 task_data[uuid]['task'].start()
+                task_queue.task_done()
         except Exception as e:
             print(f"Worker encountered an error: {e}")
 
@@ -85,11 +87,11 @@ def dashboard():
         # Handle profile picture upload
         if 'profile_picture' in request.files and request.files['profile_picture'].filename != '':
             picture = request.files['profile_picture']
-            print(f"Received file: {picture.filename}")  # Debugging line
+            print(f"Received file: {picture.filename}")
 
             # Directory for saving profile pictures
             picture_dir = os.path.join(app.root_path, 'static/profile_pics')
-            os.makedirs(picture_dir, exist_ok=True)  # Ensure directory exists
+            os.makedirs(picture_dir, exist_ok=True)
 
             # Save picture with unique filename based on user ID and timestamp
             picture_filename = f"{current_user.id}_{int(time())}_{picture.filename}"
@@ -102,13 +104,11 @@ def dashboard():
             # Update profile picture path in the database
             current_user.profile_picture = f"profile_pics/{picture_filename}"
         else:
-            # Set default profile picture if not already set
             if not current_user.profile_picture:
                 current_user.profile_picture = "default.png"
 
-        # Save all profile information to the database
         try:
-            db.session.commit()  # Commit all changes, including profile picture path
+            db.session.commit()
             flash('Profile updated successfully!', 'success')
         except Exception as e:
             db.session.rollback()
@@ -119,7 +119,6 @@ def dashboard():
 
     return render_template('dashboard.html', user=current_user)
 
-# For updating other details separately if needed
 @app.route('/update_details', methods=['GET', 'POST'])
 @login_required
 def update_details():
@@ -154,9 +153,10 @@ def change_password():
         old_password = request.form['old_password']
         new_password = request.form['new_password']
 
-        # Verify the old password (assumes it's stored as plain text)
-        if current_user.password == old_password:
-            current_user.password = new_password  # Save the new password as plain text
+        # Verify the old password
+        if check_password_hash(current_user.password, old_password):
+            # Hash the new password before saving
+            current_user.password = generate_password_hash(new_password)  
             db.session.commit()
             flash('Password changed successfully!', 'success')
             return redirect(url_for('dashboard'))
@@ -203,32 +203,19 @@ def progress():
 @app.route('/getfile')
 def getfile():
     uuid = request.args.get('uuid')
-    try:
-        if uuid in task_data:
-            file = task_data[uuid]['task'].package()
-            status = 200 if file not in [500, 701, 601] else file
-            return jsonify({"status": status, "file": str(file)})
+    if uuid in task_data:
+        file_path = os.path.join(app.root_path, 'results', f"{uuid}.csv")
+        if os.path.exists(file_path):
+            return jsonify({"status": "200", "file_path": file_path})
         else:
-            return jsonify({"status": 901, "file": "Resource Not Found"})
-    except Exception as e:
-        return jsonify({"status": 500, "error": str(e)})
+            return jsonify({"status": "404", "message": "File not found."}), 404
+    else:
+        return jsonify({"status": "404", "message": "Invalid UUID."}), 404
 
-# Run the app
+# Start background threads
+threading.Thread(target=worker, daemon=True).start()
+threading.Thread(target=janitor, daemon=True).start()
+
 if __name__ == '__main__':
-    # Create database tables
-    with app.app_context():
-        db.create_all()  # Consider using migrations for schema changes
-
-    # Start worker and janitor threads
-    worker_thread = threading.Thread(target=worker, name="WorkerThread", daemon=True)
-    janitor_thread = threading.Thread(target=janitor, name="JanitorThread", daemon=True)
-    worker_thread.start()
-    janitor_thread.start()
-
-    # Get port from environment variable or default to 8080
-    port = int(os.environ.get('PORT', 8080))
-    print("Server is running on port:", port)
-
-    # Run the application
-    from waitress import serve  # or another server like gunicorn
-    serve(app, host='0.0.0.0', port=port)  # Use '0.0.0.0' to allow external access
+    # Serve the app with Waitress on port 5000
+    serve(app, host='0.0.0.0', port=5000)
