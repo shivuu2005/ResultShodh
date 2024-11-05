@@ -3,7 +3,7 @@ waitress==2.1.2
 Flask-Login==0.6.2
 Flask-Cors==3.0.10
 SQLAlchemy==1.4.47
-Flask-Bcrypt==0.7.1
+Flask-Bcrypt==1.0.0  # Latest version
 opencv-python==4.5.5.64
 imutils==0.5.4
 beautifulsoup4==4.11.1
@@ -12,4 +12,4 @@ pytesseract==0.3.8
 flask_sqlalchemy
 Pillow==8.4.0
 gunicorn 
-Werkzeug==0.16.1  
+Werkzeug==2.2.2  # Compatible version
