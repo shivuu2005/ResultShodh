@@ -76,6 +76,7 @@
         {% endwith %}
 
         <form method="POST">
+            {{ form.csrf_token }}
             <label for="email">Email:</label>
             <input type="email" name="email" required>
             <label for="password">Password:</label>
