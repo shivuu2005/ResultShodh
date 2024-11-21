@@ -1,4 +1,3 @@
-<!-- templates/register.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -91,15 +90,16 @@
         {% endwith %}
         
         <form action="{{ url_for('auth.register') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
-            {{ form.hidden_tag() }}  <!-- Include the CSRF token here -->
+            {{ form.hidden_tag() }}  <!-- CSRF token included -->
             <input type="text" name="college_name" placeholder="College Name" required>
             <input type="email" name="email" placeholder="Email" required>
             <input type="tel" name="contact_number" placeholder="Mobile Number" pattern="[0-9]{10}" title="Enter a valid 10-digit phone number" required>
             <input type="text" name="address" placeholder="Address" required>
             <div class="password-container">
-                <input type="password" name="password" id="password" placeholder="Password" required>
+                <input type="password" name="password" id="password" placeholder="Password" required minlength="6" maxlength="150">
                 <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
             </div>
+            
             <button type="submit">Register</button>
         </form>
         
