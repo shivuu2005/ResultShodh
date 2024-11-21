@@ -4,18 +4,27 @@ from time import sleep, time
 import threading
 import queue
 import os
-from config import Config
 from flask_migrate import Migrate
+from config import Config
 from models import db, User
+from flask_wtf import FlaskForm
 from auth import auth
+from wtforms import StringField, FileField, SubmitField,PasswordField
+from wtforms.validators import DataRequired, Email, Length
+from flask_wtf.file import FileAllowed
 from flask_login import LoginManager, login_required, current_user
 from flask_cors import CORS
+from flask_wtf import CSRFProtect  # Import CSRF protection
+from werkzeug.security import check_password_hash, generate_password_hash
+
 import main
-from werkzeug.security import check_password_hash, generate_password_hash  # Import for password checking and hashing
 
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Login manager setup
 login_manager = LoginManager()
@@ -63,6 +72,7 @@ def home():
     return render_template('home.html')
 
 @app.route('/form')
+@login_required
 def form():
     return render_template('form.html')
 
@@ -78,30 +88,18 @@ def about():
 @login_required
 def dashboard():
     if request.method == 'POST':
-        # Update user profile details
         current_user.college_name = request.form['college_name']
         current_user.email = request.form['email']
         current_user.contact_number = request.form.get('phone', '')
         current_user.address = request.form.get('address', '')
 
-        # Handle profile picture upload
         if 'profile_picture' in request.files and request.files['profile_picture'].filename != '':
             picture = request.files['profile_picture']
-            print(f"Received file: {picture.filename}")
-
-            # Directory for saving profile pictures
             picture_dir = os.path.join(app.root_path, 'static/profile_pics')
             os.makedirs(picture_dir, exist_ok=True)
-
-            # Save picture with unique filename based on user ID and timestamp
             picture_filename = f"{current_user.id}_{int(time())}_{picture.filename}"
             picture_path = os.path.join(picture_dir, picture_filename)
-
-            # Save the picture to the specified path
             picture.save(picture_path)
-            print(f"Profile picture saved at: {picture_path}")
-
-            # Update profile picture path in the database
             current_user.profile_picture = f"profile_pics/{picture_filename}"
         else:
             if not current_user.profile_picture:
@@ -113,26 +111,34 @@ def dashboard():
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating profile: {e}', 'danger')
-            print(f"Database update error: {e}")
 
         return redirect(url_for('dashboard'))
 
     return render_template('dashboard.html', user=current_user)
 
+class UpdateDetailsForm(FlaskForm):
+    college_name = StringField('College Name', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    phone = StringField('Phone Number', validators=[Length(10)])
+    address = StringField('Address')
+    profile_picture = FileField('Profile Picture', validators=[FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')])
+    submit = SubmitField('Update Profile')
 @app.route('/update_details', methods=['GET', 'POST'])
 @login_required
 def update_details():
-    if request.method == 'POST':
-        print("Received form data:")
-        print(f"College Name: {request.form['college_name']}")
-        print(f"Email: {request.form['email']}")
-        print(f"Phone: {request.form.get('phone', '')}")
-        print(f"Address: {request.form.get('address', '')}")
+    form = UpdateDetailsForm()
+    
+    if form.validate_on_submit():
+        current_user.college_name = form.college_name.data
+        current_user.email = form.email.data
+        current_user.contact_number = form.phone.data
+        current_user.address = form.address.data
 
-        current_user.college_name = request.form['college_name']
-        current_user.email = request.form['email']
-        current_user.contact_number = request.form.get('phone', '')
-        current_user.address = request.form.get('address', '')
+        # Save profile picture if uploaded
+        profile_picture = form.profile_picture.data
+        if profile_picture:
+            # Save profile_picture file (implement this part as per your file storage needs)
+            pass
 
         try:
             db.session.commit()
@@ -140,12 +146,19 @@ def update_details():
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating details: {e}', 'danger')
-            print(f"Database update error: {e}")
 
         return redirect(url_for('dashboard'))
 
-    return render_template('update_details.html', user=current_user)
+    # Pre-fill the form with current user's data
+    form.college_name.data = current_user.college_name
+    form.email.data = current_user.email
+    form.phone.data = current_user.contact_number
+    form.address.data = current_user.address
 
+    return render_template('update_details.html', form=form, user=current_user)
+
+
+# Assuming User model with SQLAlchemy session
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -153,10 +166,10 @@ def change_password():
         old_password = request.form['old_password']
         new_password = request.form['new_password']
 
-        # Verify the old password
+        # Check if the old password matches the one in the database
         if check_password_hash(current_user.password, old_password):
-            # Hash the new password before saving
-            current_user.password = generate_password_hash(new_password)  
+            # Update the password with the new hashed password
+            current_user.password = generate_password_hash(new_password)
             db.session.commit()
             flash('Password changed successfully!', 'success')
             return redirect(url_for('dashboard'))
@@ -164,6 +177,32 @@ def change_password():
             flash('Old password is incorrect!', 'danger')
 
     return render_template('change_password.html', user=current_user)
+
+
+class ChangePasswordForm(FlaskForm):
+    old_password = PasswordField('Old Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[DataRequired()])
+    submit = SubmitField('Change Password')
+
+@app.route('/change_password', methods=['GET', 'POST'], endpoint='change_password_route')
+@login_required
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        old_password = form.old_password.data
+        new_password = form.new_password.data
+
+        # Verify the old password
+        if check_password_hash(current_user.password, old_password):
+            # Update the password in the database
+            current_user.password = generate_password_hash(new_password)
+            db.session.commit()
+            flash('Password changed successfully!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Old password is incorrect!', 'danger')
+
+    return render_template('change_password.html', form=form)
 
 @app.route('/admin_dashboard')
 @login_required
@@ -217,5 +256,6 @@ threading.Thread(target=worker, daemon=True).start()
 threading.Thread(target=janitor, daemon=True).start()
 
 if __name__ == '__main__':
-    # Serve the app with Waitress on port 5000
-    serve(app, host='0.0.0.0', port=5000)
+    # Serve the app with Waitress on port 8080
+    
+    serve(app, host='0.0.0.0', port=8080)
